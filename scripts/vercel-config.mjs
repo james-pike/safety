@@ -1,18 +1,8 @@
-import { writeFileSync, mkdirSync, cpSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const outputDir = ".vercel/output";
 const funcDir = join(outputDir, "functions/_qwik-city.func");
-
-// Create function directory
-mkdirSync(funcDir, { recursive: true });
-
-// Copy server build into function directory
-cpSync("server", funcDir, { recursive: true });
-
-// Copy client dist to static
-mkdirSync(join(outputDir, "static"), { recursive: true });
-cpSync("dist", join(outputDir, "static"), { recursive: true });
 
 // Write output config.json
 writeFileSync(
