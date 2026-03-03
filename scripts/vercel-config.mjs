@@ -1,8 +1,19 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const outputDir = ".vercel/output";
 const funcDir = join(outputDir, "functions/_qwik-city.func");
+
+// Install undici in the function directory
+const funcNodeModules = join(funcDir, "node_modules");
+if (!existsSync(funcNodeModules)) {
+  mkdirSync(funcNodeModules, { recursive: true });
+}
+
+// Copy undici from project node_modules
+if (existsSync("node_modules/undici")) {
+  cpSync("node_modules/undici", join(funcNodeModules, "undici"), { recursive: true });
+}
 
 // Write output config.json
 writeFileSync(
