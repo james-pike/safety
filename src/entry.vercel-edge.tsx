@@ -1,15 +1,19 @@
-/*
- * WHAT IS THIS FILE?
- *
- * It's the entry point for the Node.js server adapter for Vercel.
- */
 import { createQwikCity } from "@builder.io/qwik-city/middleware/node";
 import qwikCityPlan from "@qwik-city-plan";
 import render from "./entry.ssr";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-const { router, notFound, staticFile } = createQwikCity({
+const { router, notFound } = createQwikCity({
   render,
   qwikCityPlan,
 });
 
-export { router, notFound, staticFile };
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  await new Promise<void>((resolve) => {
+    router(req, res, () => {
+      notFound(req, res, () => {
+        resolve();
+      });
+    });
+  });
+}
