@@ -1,14 +1,15 @@
 /*
  * WHAT IS THIS FILE?
  *
- * It's the entry point for Vercel Edge when building for production.
- *
- * Learn more about the Vercel Edge integration here:
- * - https://qwik.dev/docs/deployments/vercel-edge/
- *
+ * It's the entry point for the Node.js server adapter for Vercel.
  */
-import { createQwikCity } from "@builder.io/qwik-city/middleware/vercel-edge";
+import { createQwikCity } from "@builder.io/qwik-city/middleware/node";
 import qwikCityPlan from "@qwik-city-plan";
 import render from "./entry.ssr";
 
-export default createQwikCity({ render, qwikCityPlan });
+const { router, notFound, staticFile } = createQwikCity({
+  render,
+  qwikCityPlan,
+});
+
+export { router, notFound, staticFile };
