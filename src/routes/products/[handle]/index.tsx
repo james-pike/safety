@@ -118,7 +118,7 @@ export default component$(() => {
               if (!variant) return;
               adding.value = true;
               try {
-                const backendUrl = "http://localhost:9000";
+                const backendUrl = cart.backendUrl;
                 const headers: Record<string, string> = {
                   "Content-Type": "application/json",
                 };

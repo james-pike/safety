@@ -6,6 +6,7 @@ export interface CartState {
   items: any[];
   total: number;
   count: number;
+  backendUrl: string;
 }
 
 export const CartContext = createContextId<CartState>("cart-context");
@@ -18,11 +19,13 @@ export const useServerConfig = routeLoader$(async ({ env }) => {
 });
 
 export default component$(() => {
+  const config = useServerConfig();
   const cartState = useStore<CartState>({
     cartId: "",
     items: [],
     total: 0,
     count: 0,
+    backendUrl: config.value.backendUrl,
   });
 
   useContextProvider(CartContext, cartState);

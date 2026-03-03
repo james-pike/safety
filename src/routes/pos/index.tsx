@@ -1,5 +1,6 @@
 // POS Terminal
-import { component$, useSignal, useStore, useVisibleTask$, $ } from "@builder.io/qwik";
+import { component$, useSignal, useStore, useVisibleTask$, $, useContext } from "@builder.io/qwik";
+import { PosConfigContext } from "./layout";
 import BarcodeInput from "~/components/pos/barcode-input";
 import PosCart from "~/components/pos/pos-cart";
 import ProductLookup from "~/components/pos/product-lookup";
@@ -15,6 +16,7 @@ interface PosItem {
 }
 
 export default component$(() => {
+  const posConfig = useContext(PosConfigContext);
   const items = useStore<PosItem[]>([]);
   const sessionId = useSignal("");
   const paymentMethod = useSignal<"cash" | "card">("cash");
@@ -97,7 +99,7 @@ export default component$(() => {
         headers["Authorization"] = `Bearer ${token.value}`;
       }
 
-      const res = await fetch("http://localhost:9000/admin/pos/sale", {
+      const res = await fetch(`${posConfig.backendUrl}/admin/pos/sale`, {
         method: "POST",
         headers,
         credentials: "include",
@@ -152,6 +154,7 @@ export default component$(() => {
         <div class="flex items-center justify-between mb-4">
           <BarcodeInput
             token={token.value}
+            backendUrl={posConfig.backendUrl}
             onScan$={(variant: any) => addItem(variant)}
             onError$={(msg: string) => (error.value = msg)}
           />
@@ -164,6 +167,7 @@ export default component$(() => {
         </div>
         <ProductLookup
           token={token.value}
+          backendUrl={posConfig.backendUrl}
           onSelect$={(variant: any) => addItem(variant)}
         />
       </div>

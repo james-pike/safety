@@ -1,7 +1,24 @@
-import { component$, Slot } from "@builder.io/qwik";
-import { useLocation } from "@builder.io/qwik-city";
+import { component$, Slot, createContextId, useContextProvider, useStore } from "@builder.io/qwik";
+import { routeLoader$, useLocation } from "@builder.io/qwik-city";
+
+export interface PosConfig {
+  backendUrl: string;
+}
+
+export const PosConfigContext = createContextId<PosConfig>("pos-config");
+
+export const usePosConfig = routeLoader$(async ({ env }) => {
+  return {
+    backendUrl: env.get("MEDUSA_BACKEND_URL") || "http://localhost:9000",
+  };
+});
 
 export default component$(() => {
+  const config = usePosConfig();
+  const posConfig = useStore<PosConfig>({
+    backendUrl: config.value.backendUrl,
+  });
+  useContextProvider(PosConfigContext, posConfig);
   const loc = useLocation();
   const path = loc.url.pathname;
 

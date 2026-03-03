@@ -9,7 +9,7 @@ export default component$(() => {
     if (!cart.cartId) return;
     try {
       const res = await fetch(
-        `http://localhost:9000/store/carts/${cart.cartId}`,
+        `${cart.backendUrl}/store/carts/${cart.cartId}`,
         { headers: { "Content-Type": "application/json" } }
       );
       const data = await res.json();
@@ -58,7 +58,7 @@ export default component$(() => {
                         updating.value = true;
                         try {
                           await fetch(
-                            `http://localhost:9000/store/carts/${cart.cartId}/line-items/${item.id}`,
+                            `${cart.backendUrl}/store/carts/${cart.cartId}/line-items/${item.id}`,
                             {
                               method: "POST",
                               headers: {
@@ -84,7 +84,7 @@ export default component$(() => {
                         updating.value = true;
                         try {
                           await fetch(
-                            `http://localhost:9000/store/carts/${cart.cartId}/line-items/${item.id}`,
+                            `${cart.backendUrl}/store/carts/${cart.cartId}/line-items/${item.id}`,
                             {
                               method: "POST",
                               headers: {
@@ -113,7 +113,7 @@ export default component$(() => {
                       updating.value = true;
                       try {
                         await fetch(
-                          `http://localhost:9000/store/carts/${cart.cartId}/line-items/${item.id}`,
+                          `${cart.backendUrl}/store/carts/${cart.cartId}/line-items/${item.id}`,
                           { method: "DELETE" }
                         );
                         await refreshCart();

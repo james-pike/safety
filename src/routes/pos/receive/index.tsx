@@ -1,4 +1,9 @@
 import { component$, useSignal, useStore, useVisibleTask$, $ } from "@builder.io/qwik";
+import { routeLoader$ } from "@builder.io/qwik-city";
+
+export const useBackendUrl = routeLoader$(async ({ env }) => {
+  return env.get("MEDUSA_BACKEND_URL") || "http://localhost:9000";
+});
 
 interface ReceivedItem {
   product_title: string;
@@ -12,6 +17,7 @@ interface ReceivedItem {
 // Mobile breakpoint handled via Tailwind classes
 
 export default component$(() => {
+  const backendUrlData = useBackendUrl();
   const token = useSignal("");
   const scanInput = useSignal("");
 
@@ -106,7 +112,7 @@ export default component$(() => {
       if (token.value) headers["Authorization"] = `Bearer ${token.value}`;
 
       const res = await fetch(
-        `http://localhost:9000/admin/pos/products/barcode/${encodeURIComponent(code)}`,
+        `${backendUrlData.value}/admin/pos/products/barcode/${encodeURIComponent(code)}`,
         { headers, credentials: "include" }
       );
 
@@ -143,7 +149,7 @@ export default component$(() => {
       };
       if (token.value) headers["Authorization"] = `Bearer ${token.value}`;
 
-      const res = await fetch("http://localhost:9000/admin/pos/receive", {
+      const res = await fetch(`${backendUrlData.value}/admin/pos/receive`, {
         method: "POST",
         headers,
         credentials: "include",
@@ -190,7 +196,7 @@ export default component$(() => {
       if (token.value) headers["Authorization"] = `Bearer ${token.value}`;
 
       const res = await fetch(
-        "http://localhost:9000/admin/pos/receive/new-product",
+        `${backendUrlData.value}/admin/pos/receive/new-product`,
         {
           method: "POST",
           headers,

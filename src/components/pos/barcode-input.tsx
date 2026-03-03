@@ -2,11 +2,12 @@ import { component$, useSignal, type QRL, $ } from "@builder.io/qwik";
 
 interface Props {
   token: string;
+  backendUrl: string;
   onScan$: QRL<(variant: any) => void>;
   onError$: QRL<(msg: string) => void>;
 }
 
-export default component$<Props>(({ token, onScan$, onError$ }) => {
+export default component$<Props>(({ token, backendUrl, onScan$, onError$ }) => {
   const inputValue = useSignal("");
   const loading = useSignal(false);
   const cameraActive = useSignal(false);
@@ -22,7 +23,7 @@ export default component$<Props>(({ token, onScan$, onError$ }) => {
         headers["Authorization"] = `Bearer ${token}`;
       }
       const res = await fetch(
-        `http://localhost:9000/admin/pos/products/barcode/${encodeURIComponent(code.trim())}`,
+        `${backendUrl}/admin/pos/products/barcode/${encodeURIComponent(code.trim())}`,
         { headers, credentials: "include" }
       );
       if (!res.ok) {
