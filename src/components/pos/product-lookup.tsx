@@ -12,7 +12,7 @@ export default component$<Props>(({ token, backendUrl, onSelect$ }) => {
   const loading = useSignal(false);
 
   return (
-    <div>
+    <div class="min-w-0">
       <label class="block text-sm text-gray-400 mb-1">Product Search</label>
       <input
         type="text"

@@ -148,32 +148,36 @@ export default component$(() => {
   const showCart = useSignal(false);
 
   return (
-    <div class="flex h-full relative overflow-hidden">
+    <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Product search / scanner */}
-      <div class="flex-1 min-w-0 flex flex-col p-4 overflow-auto">
-        <div class="flex items-center justify-between mb-4">
-          <BarcodeInput
-            token={token.value}
-            backendUrl={posConfig.backendUrl}
-            onScan$={(variant: any) => addItem(variant)}
-            onError$={(msg: string) => (error.value = msg)}
-          />
+      <div class="flex-1 min-w-0 flex flex-col p-4 overflow-y-auto overflow-x-hidden">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-1 min-w-0">
+            <BarcodeInput
+              token={token.value}
+              backendUrl={posConfig.backendUrl}
+              onScan$={(variant: any) => addItem(variant)}
+              onError$={(msg: string) => (error.value = msg)}
+            />
+          </div>
           <button
-            class="lg:hidden bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm ml-3 shrink-0"
+            class="lg:hidden bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm shrink-0"
             onClick$={() => (showCart.value = !showCart.value)}
           >
             Cart ({items.length})
           </button>
         </div>
-        <ProductLookup
-          token={token.value}
-          backendUrl={posConfig.backendUrl}
-          onSelect$={(variant: any) => addItem(variant)}
-        />
+        <div class="min-w-0">
+          <ProductLookup
+            token={token.value}
+            backendUrl={posConfig.backendUrl}
+            onSelect$={(variant: any) => addItem(variant)}
+          />
+        </div>
       </div>
 
       {/* Right: Cart + Payment */}
-      <div class={`${showCart.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[420px] bg-gray-800 flex flex-col border-l border-gray-700`}>
+      <div class={`${showCart.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[420px] lg:shrink-0 bg-gray-800 flex flex-col border-l border-gray-700 overflow-hidden`}>
         <div class="flex-1 overflow-auto p-4">
           <div class="flex items-center justify-between mb-3 lg:hidden">
             <h2 class="font-bold text-sm uppercase tracking-wide text-gray-400">Cart</h2>

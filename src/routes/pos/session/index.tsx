@@ -108,8 +108,8 @@ export default component$(() => {
   });
 
   return (
-    <div class="flex items-center justify-center h-full p-4">
-      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg space-y-6">
+    <div class="flex items-center justify-center h-full p-4 overflow-y-auto overflow-x-hidden">
+      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg space-y-6 min-w-0">
         <h1 class="text-xl font-bold">Register Session</h1>
 
         {/* Login */}
