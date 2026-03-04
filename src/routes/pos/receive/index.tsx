@@ -26,7 +26,7 @@ export default component$(() => {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (savedToken) headers["Authorization"] = `Bearer ${savedToken}`;
-      const res = await fetch(`${posConfig.backendUrl}/admin/store`, { headers, credentials: "include" });
+      const res = await fetch(`${posConfig.backendUrl}/admin/stores`, { headers, credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         const store = data.stores?.[0] || data.store;
