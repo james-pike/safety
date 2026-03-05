@@ -4,8 +4,8 @@ import { PosConfigContext } from "../layout";
 export default component$(() => {
   const posConfig = useContext(PosConfigContext);
   const token = useSignal("");
-  const email = useSignal("admin@example.com");
-  const password = useSignal("admin123");
+  const email = useSignal("");
+  const password = useSignal("");
   const sessionId = useSignal("");
   const openingCash = useSignal("");
   const closingCash = useSignal("");
