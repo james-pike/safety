@@ -15,6 +15,7 @@ interface ReceivedItem {
 export default component$(() => {
   const posConfig = useContext(PosConfigContext);
   const token = useSignal("");
+  const categories = useSignal<{ id: string; name: string; handle: string }[]>([]);
 
   // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(async () => {
@@ -31,7 +32,7 @@ export default component$(() => {
           const data = await res.json();
           categories.value = data.categories || [];
         }
-      } catch { /* non-fatal */ }
+      } catch (e) { console.error("Failed to load categories:", e); }
     }
   });
 
@@ -50,7 +51,6 @@ export default component$(() => {
   const newBarcode = useSignal("");
   const newQty = useSignal(1);
   const newCategoryId = useSignal("");
-  const categories = useSignal<{ id: string; name: string; handle: string }[]>([]);
 
   // History of received items this session
   const received = useStore<ReceivedItem[]>([]);
