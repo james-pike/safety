@@ -179,7 +179,7 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Scanner + action */}
-      <div class="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
+      <div class="flex-1 min-w-0 p-4 md:p-6 pb-24 overflow-y-auto overflow-x-hidden">
         <div class="flex items-center justify-between mb-6">
           <h1 class="text-2xl font-bold">Receive Inventory</h1>
           <button
@@ -230,13 +230,17 @@ export default component$(() => {
                   </p>
                 )}
               </div>
-              {scannedVariant.value.prices?.[0] && (
-                <p class="text-xl font-bold">
-                  $
-                  {(scannedVariant.value.prices[0].amount / 100).toFixed(2)}{" "}
-                  CAD
-                </p>
-              )}
+              {(() => {
+                const v = scannedVariant.value;
+                const price = v.calculated_price?.calculated_amount
+                  ?? (v.prices?.find((p: any) => p.currency_code === "cad") || v.prices?.[0])?.amount
+                  ?? v.price ?? v.original_price;
+                return price != null ? (
+                  <p class="text-xl font-bold">
+                    ${(price / 100).toFixed(2)} CAD
+                  </p>
+                ) : null;
+              })()}
             </div>
 
             <div class="flex flex-wrap items-end gap-3">

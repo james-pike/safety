@@ -34,8 +34,8 @@ export default component$(() => {
         <Slot />
       </div>
 
-      {/* Bottom tab bar */}
-      <nav class="bg-gray-800 border-t border-gray-700 flex shrink-0">
+      {/* Bottom tab bar — with center gap for floating scan button */}
+      <nav class="bg-gray-800 border-t border-gray-700 flex shrink-0 relative">
         <a
           href="/pos"
           class={`flex-1 flex flex-col items-center justify-center py-3 gap-1 ${
@@ -50,6 +50,8 @@ export default component$(() => {
           </svg>
           <span class="text-xs font-medium">Sale</span>
         </a>
+        {/* Spacer for floating scan button */}
+        <div class="w-28 shrink-0" />
         <a
           href="/pos/receive"
           class={`flex-1 flex flex-col items-center justify-center py-3 gap-1 ${

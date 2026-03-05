@@ -44,7 +44,19 @@ export default component$(() => {
     paymentMethod.value === "cash" ? amountTendered.value - total : 0;
 
   const addItem = $((variant: any) => {
-    const price = variant.prices?.[0]?.amount || 0;
+    // Extract price — handle multiple Medusa response formats
+    let price = 0;
+    if (variant.calculated_price?.calculated_amount != null) {
+      price = variant.calculated_price.calculated_amount;
+    } else if (variant.prices?.length > 0) {
+      // Prefer CAD price, fallback to first
+      const cadPrice = variant.prices.find((p: any) => p.currency_code === "cad");
+      price = (cadPrice || variant.prices[0])?.amount || 0;
+    } else if (variant.price != null) {
+      price = variant.price;
+    } else if (variant.original_price != null) {
+      price = variant.original_price;
+    }
     const existing = items.find((i) => i.variant_id === variant.id);
     if (existing) {
       existing.quantity++;
@@ -150,7 +162,7 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Product search / scanner */}
-      <div class="flex-1 min-w-0 flex flex-col p-4 overflow-y-auto overflow-x-hidden">
+      <div class="flex-1 min-w-0 flex flex-col p-4 pb-24 overflow-y-auto overflow-x-hidden">
         <div class="flex items-center gap-3 mb-4">
           <div class="flex-1 min-w-0">
             <BarcodeInput

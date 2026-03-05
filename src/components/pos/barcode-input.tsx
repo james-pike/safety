@@ -13,15 +13,16 @@ export default component$<Props>(({ token, backendUrl, onScan$, onError$, onNotF
   const inputValue = useSignal("");
   const loading = useSignal(false);
   const cameraActive = useSignal(false);
-  const videoRef = useSignal<HTMLVideoElement | undefined>();
-  const streamRef = useSignal<MediaStream | undefined>();
+  const scannerRef = useSignal<any>(undefined);
 
-  // Clean up camera on unmount
+  // Clean up scanner on unmount
   // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(({ cleanup }) => {
     cleanup(() => {
-      if (streamRef.value) {
-        streamRef.value.getTracks().forEach((t) => t.stop());
+      if (scannerRef.value) {
+        try {
+          scannerRef.value.stop().catch(() => {});
+        } catch { /* ignore */ }
       }
     });
   });
@@ -65,166 +66,160 @@ export default component$<Props>(({ token, backendUrl, onScan$, onError$, onNotF
     loading.value = false;
   });
 
-  const stopCamera = $(() => {
-    if (streamRef.value) {
-      streamRef.value.getTracks().forEach((t) => t.stop());
-      streamRef.value = undefined;
+  const stopCamera = $(async () => {
+    if (scannerRef.value) {
+      try {
+        await scannerRef.value.stop();
+      } catch { /* ignore */ }
+      scannerRef.value = undefined;
     }
     cameraActive.value = false;
   });
 
   const startCameraScan = $(async () => {
-    const win = window as any;
-    if (!("BarcodeDetector" in window)) {
-      onError$(
-        "BarcodeDetector not supported in this browser. Use Chrome on Android, or type/scan with a USB scanner."
-      );
-      return;
-    }
-
     try {
       cameraActive.value = true;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-      streamRef.value = stream;
 
-      // Wait a tick for the video element to render
-      await new Promise((r) => setTimeout(r, 50));
+      // Dynamic import to keep it client-side only
+      const { Html5Qrcode } = await import("html5-qrcode");
 
-      const video = videoRef.value;
-      if (!video) {
-        stopCamera();
+      // Wait for the scanner container to render
+      await new Promise((r) => setTimeout(r, 100));
+
+      const scannerId = "barcode-scanner-region";
+      const el = document.getElementById(scannerId);
+      if (!el) {
+        cameraActive.value = false;
         return;
       }
-      video.srcObject = stream;
-      video.setAttribute("playsinline", "true");
-      await video.play();
 
-      const detector = new win.BarcodeDetector({
-        formats: [
-          "ean_13",
-          "ean_8",
-          "upc_a",
-          "upc_e",
-          "code_128",
-          "code_39",
-          "qr_code",
-        ],
-      });
+      const html5QrCode = new Html5Qrcode(scannerId);
+      scannerRef.value = html5QrCode;
 
       let found = false;
-      const scanLoop = async () => {
-        if (!cameraActive.value || found) return;
-        try {
-          const barcodes = await detector.detect(video);
-          if (barcodes.length > 0) {
-            found = true;
-            const code = barcodes[0].rawValue;
-            stopCamera();
-            inputValue.value = code;
-            await lookup(code);
-            return;
-          }
-        } catch {
-          // ignore frame detection errors
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 280, height: 160 },
+          aspectRatio: 1.0,
+        },
+        async (decodedText: string) => {
+          if (found) return;
+          found = true;
+          await stopCamera();
+          inputValue.value = decodedText;
+          await lookup(decodedText);
+        },
+        () => {
+          // Ignore scan failures (no code detected yet)
         }
-        if (!found && cameraActive.value) {
-          requestAnimationFrame(scanLoop);
-        }
-      };
-      scanLoop();
+      );
 
-      // Auto-stop after 30 seconds
+      // Auto-stop after 45 seconds
       setTimeout(() => {
         if (!found && cameraActive.value) {
           stopCamera();
         }
-      }, 30000);
-    } catch {
-      stopCamera();
+      }, 45000);
+    } catch (err: any) {
+      await stopCamera();
       onError$("Camera not available. Type barcode manually.");
     }
   });
 
   return (
-    <div class="flex-1 min-w-0">
-      <label class="block text-sm text-gray-400 mb-1">
-        Scan Barcode / Enter UPC
-      </label>
-      <div class="flex gap-2">
-        <input
-          type="text"
-          class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Scan or type barcode..."
-          value={inputValue.value}
-          autoFocus
-          onInput$={(e) =>
-            (inputValue.value = (e.target as HTMLInputElement).value)
-          }
-          onKeyDown$={async (e) => {
-            if (e.key !== "Enter" || !inputValue.value.trim()) return;
-            await lookup(inputValue.value.trim());
-          }}
-        />
-        <button
-          class={`${cameraActive.value ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"} text-white px-3 py-2 rounded-lg shrink-0 flex items-center gap-1.5`}
-          onClick$={cameraActive.value ? stopCamera : startCameraScan}
-          title={cameraActive.value ? "Stop camera" : "Scan with camera"}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-            <rect x="14" y="14" width="3" height="3" />
-            <line x1="20" y1="14" x2="20" y2="14.01" />
-            <line x1="14" y1="20" x2="14" y2="20.01" />
-            <line x1="20" y1="20" x2="20" y2="20.01" />
-            <line x1="20" y1="17" x2="20" y2="17.01" />
-            <line x1="17" y1="20" x2="17" y2="20.01" />
-          </svg>
-          <span class="hidden sm:inline text-sm">
-            {cameraActive.value ? "Stop" : "Scan"}
-          </span>
-        </button>
+    <>
+      {/* Text input for manual barcode entry */}
+      <div class="flex-1 min-w-0">
+        <label class="block text-sm text-gray-400 mb-1">
+          Scan Barcode / Enter UPC
+        </label>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Type barcode or tap Scan..."
+            value={inputValue.value}
+            autoFocus
+            onInput$={(e) =>
+              (inputValue.value = (e.target as HTMLInputElement).value)
+            }
+            onKeyDown$={async (e) => {
+              if (e.key !== "Enter" || !inputValue.value.trim()) return;
+              await lookup(inputValue.value.trim());
+            }}
+          />
+        </div>
+
+        {loading.value && (
+          <p class="text-xs text-gray-400 mt-1">Looking up...</p>
+        )}
       </div>
 
-      {/* Live camera preview */}
+      {/* Full-screen camera overlay */}
       {cameraActive.value && (
-        <div class="mt-3 relative rounded-lg overflow-hidden bg-black">
-          <video
-            ref={videoRef}
-            class="w-full max-h-[300px] object-cover"
-            muted
-            playsInline
-          />
-          {/* Scanning overlay with crosshair */}
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="w-3/4 h-1/3 border-2 border-blue-400 rounded-lg opacity-70" />
+        <div class="fixed inset-0 z-50 bg-black flex flex-col">
+          {/* Header bar */}
+          <div class="bg-gray-900 px-4 py-3 flex items-center justify-between shrink-0">
+            <h2 class="text-white font-bold text-lg">Scan Barcode</h2>
+            <button
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+              onClick$={stopCamera}
+            >
+              Cancel
+            </button>
           </div>
-          <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-blue-300 animate-pulse">
-            Point at barcode...
-          </p>
+
+          {/* Scanner viewport */}
+          <div class="flex-1 flex items-center justify-center overflow-hidden">
+            <div id="barcode-scanner-region" class="w-full h-full" />
+          </div>
+
+          {/* Bottom hint */}
+          <div class="bg-gray-900 px-4 py-3 text-center shrink-0">
+            <p class="text-blue-300 text-sm animate-pulse">
+              Point camera at barcode or QR code...
+            </p>
+          </div>
         </div>
       )}
 
-      {loading.value && (
-        <p class="text-xs text-gray-400 mt-1">Looking up...</p>
-      )}
-    </div>
+      {/* Floating scan button — overlaps bottom nav bar */}
+      <button
+        class={`fixed bottom-[28px] left-1/2 -translate-x-1/2 z-30 ${
+          cameraActive.value
+            ? "bg-red-600 hover:bg-red-700 shadow-red-500/40"
+            : "bg-blue-500 hover:bg-blue-600 shadow-blue-500/40"
+        } text-white rounded-full shadow-lg flex items-center gap-2 px-7 py-4 text-lg font-bold active:scale-95 transition-transform`}
+        onClick$={cameraActive.value ? stopCamera : startCameraScan}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          {cameraActive.value ? (
+            <>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </>
+          ) : (
+            <>
+              {/* Camera/scan icon */}
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </>
+          )}
+        </svg>
+        {cameraActive.value ? "Stop" : "Scan"}
+      </button>
+    </>
   );
 });
