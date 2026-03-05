@@ -27,7 +27,6 @@ export default component$(() => {
   const error = useSignal("");
   const token = useSignal("");
 
-  // Auto-load auth token and session from localStorage
   // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(() => {
     const savedToken = localStorage.getItem("pos_token");
@@ -46,14 +45,13 @@ export default component$(() => {
   const addItem = $((variant: any) => {
     // Extract price — handle multiple Medusa response formats
     let price = 0;
-    if (variant.calculated_price?.calculated_amount != null) {
+    if (variant.price != null && variant.price > 0) {
+      price = variant.price;
+    } else if (variant.calculated_price?.calculated_amount != null) {
       price = variant.calculated_price.calculated_amount;
     } else if (variant.prices?.length > 0) {
-      // Prefer CAD price, fallback to first
       const cadPrice = variant.prices.find((p: any) => p.currency_code === "cad");
       price = (cadPrice || variant.prices[0])?.amount || 0;
-    } else if (variant.price != null) {
-      price = variant.price;
     } else if (variant.original_price != null) {
       price = variant.original_price;
     }
@@ -127,9 +125,6 @@ export default component$(() => {
           amount_tendered:
             paymentMethod.value === "cash" ? amountTendered.value : undefined,
           currency_code: "cad",
-          region_id: "",
-          sales_channel_id: "",
-          location_id: "",
         }),
       });
 
@@ -146,6 +141,7 @@ export default component$(() => {
         amount_tendered: amountTendered.value,
         change: change > 0 ? change : 0,
         total,
+        currency_code: "cad",
         date: new Date().toISOString(),
       };
       showReceipt.value = true;
@@ -162,48 +158,63 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Product search / scanner */}
-      <div class="flex-1 min-w-0 flex flex-col p-4 pb-24 overflow-y-auto overflow-x-hidden">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="flex-1 min-w-0">
-            <BarcodeInput
-              token={token.value}
-              backendUrl={posConfig.backendUrl}
-              onScan$={(variant: any) => addItem(variant)}
-              onError$={(msg: string) => (error.value = msg)}
-            />
+      <div class="flex-1 min-w-0 flex flex-col p-3 pb-20 overflow-y-auto overflow-x-hidden">
+        {/* Header */}
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <img src="/logo.png" alt="Safety House" class="h-7" />
+            <span class="text-sm font-bold text-gray-400 uppercase tracking-wider hidden sm:inline">POS</span>
           </div>
           <button
-            class="lg:hidden bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm shrink-0"
+            class="lg:hidden bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
             onClick$={() => (showCart.value = !showCart.value)}
           >
-            Cart ({items.length})
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            {items.length}
           </button>
         </div>
-        <div class="min-w-0">
-          <ProductLookup
+
+        {/* Scanner input */}
+        <div class="mb-3">
+          <BarcodeInput
             token={token.value}
             backendUrl={posConfig.backendUrl}
-            onSelect$={(variant: any) => addItem(variant)}
+            onScan$={(variant: any) => addItem(variant)}
+            onError$={(msg: string) => (error.value = msg)}
           />
         </div>
+
+        {/* Error display */}
+        {error.value && (
+          <div class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg mb-3">
+            {error.value}
+          </div>
+        )}
+
+        {/* Product search */}
+        <ProductLookup
+          token={token.value}
+          backendUrl={posConfig.backendUrl}
+          onSelect$={(variant: any) => addItem(variant)}
+        />
       </div>
 
       {/* Right: Cart + Payment */}
-      <div class={`${showCart.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[420px] lg:shrink-0 bg-gray-800 flex flex-col border-l border-gray-700 overflow-hidden`}>
-        <div class="flex-1 overflow-auto p-4">
-          <div class="flex items-center justify-between mb-3 lg:hidden">
-            <h2 class="font-bold text-sm uppercase tracking-wide text-gray-400">Cart</h2>
+      <div class={`${showCart.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[380px] lg:shrink-0 bg-gray-900 flex flex-col border-l border-gray-800 overflow-hidden`}>
+        <div class="flex-1 overflow-auto p-3">
+          <div class="flex items-center justify-between mb-2 lg:hidden">
+            <h2 class="font-bold text-xs uppercase tracking-wide text-gray-500">Cart</h2>
             <button
-              class="text-gray-400 hover:text-white text-sm"
+              class="text-gray-500 hover:text-white text-xs"
               onClick$={() => (showCart.value = false)}
             >
               Close
             </button>
           </div>
           {!token.value && (
-            <p class="text-yellow-400 text-xs mb-3">
-              Not logged in — <a href="/pos/session" class="underline">open a session</a> first
-            </p>
+            <div class="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs px-3 py-2 rounded-lg mb-3">
+              Not logged in — <a href="/pos/session" class="underline font-medium">open session</a>
+            </div>
           )}
 
           <PosCart
@@ -214,21 +225,21 @@ export default component$(() => {
         </div>
 
         {/* Payment section */}
-        <div class="border-t border-gray-700 p-4">
-          <div class="flex justify-between text-lg font-bold mb-3">
-            <span>Total</span>
-            <span>{(total / 100).toFixed(2)} CAD</span>
+        <div class="border-t border-gray-800 p-3">
+          <div class="flex justify-between text-lg font-bold mb-2">
+            <span class="text-gray-400">Total</span>
+            <span>${(total / 100).toFixed(2)}</span>
           </div>
 
-          <div class="flex gap-2 mb-3">
+          <div class="flex gap-1.5 mb-2">
             <button
-              class={`flex-1 py-2 rounded text-sm font-medium ${paymentMethod.value === "cash" ? "bg-green-600" : "bg-gray-700"}`}
+              class={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${paymentMethod.value === "cash" ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-400"}`}
               onClick$={() => (paymentMethod.value = "cash")}
             >
               Cash
             </button>
             <button
-              class={`flex-1 py-2 rounded text-sm font-medium ${paymentMethod.value === "card" ? "bg-blue-600" : "bg-gray-700"}`}
+              class={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${paymentMethod.value === "card" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}
               onClick$={() => (paymentMethod.value = "card")}
             >
               Card
@@ -236,30 +247,26 @@ export default component$(() => {
           </div>
 
           {paymentMethod.value === "cash" && (
-            <div class="mb-3">
+            <div class="mb-2">
               <CashDrawer
                 total={total}
                 amountTendered={amountTendered.value}
                 onChange$={(val: number) => (amountTendered.value = val)}
               />
               {change > 0 && (
-                <p class="text-green-400 text-sm mt-1">
-                  Change: {(change / 100).toFixed(2)} CAD
+                <p class="text-emerald-400 text-xs font-medium mt-1">
+                  Change: ${(change / 100).toFixed(2)}
                 </p>
               )}
             </div>
           )}
 
-          {error.value && (
-            <p class="text-red-400 text-sm mb-2">{error.value}</p>
-          )}
-
           <button
-            class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold text-lg disabled:opacity-50"
+            class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-base disabled:opacity-40 transition-colors"
             disabled={processing.value || items.length === 0}
             onClick$={processSale}
           >
-            {processing.value ? "Processing..." : "Complete Sale"}
+            {processing.value ? "Processing..." : `Complete Sale  $${(total / 100).toFixed(2)}`}
           </button>
         </div>
       </div>

@@ -16,55 +16,15 @@ export default component$(() => {
   const posConfig = useContext(PosConfigContext);
   const token = useSignal("");
 
-  // Auto-load auth token and fetch store defaults
   // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(async () => {
     const savedToken = localStorage.getItem("pos_token");
     if (savedToken) token.value = savedToken;
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (savedToken) headers["Authorization"] = `Bearer ${savedToken}`;
-
-    // Fetch store defaults for location_id and sales_channel_id
-    try {
-      const res = await fetch(`${posConfig.backendUrl}/admin/stores`, { headers, credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        const store = data.stores?.[0] || data.store;
-        if (store?.default_location_id) locationId.value = store.default_location_id;
-        if (store?.default_sales_channel_id) salesChannelId.value = store.default_sales_channel_id;
-      }
-    } catch { /* use defaults */ }
-
-    // Fallback: if no location_id yet, fetch stock locations directly
-    if (!locationId.value) {
-      try {
-        const res = await fetch(`${posConfig.backendUrl}/admin/stock-locations`, { headers, credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          const loc = data.stock_locations?.[0];
-          if (loc?.id) locationId.value = loc.id;
-        }
-      } catch { /* ignore */ }
-    }
-
-    // Fallback: fetch sales channels if still missing
-    if (!salesChannelId.value) {
-      try {
-        const res = await fetch(`${posConfig.backendUrl}/admin/sales-channels`, { headers, credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          const ch = data.sales_channels?.[0];
-          if (ch?.id) salesChannelId.value = ch.id;
-        }
-      } catch { /* ignore */ }
-    }
   });
+
   const loading = useSignal(false);
   const error = useSignal("");
   const message = useSignal("");
-  const locationId = useSignal("");
-  const salesChannelId = useSignal("");
 
   // Scanned product state
   const scannedVariant = useSignal<any>(null);
@@ -122,7 +82,6 @@ export default component$(() => {
         body: JSON.stringify({
           variant_id: scannedVariant.value.id,
           quantity: receiveQty.value,
-          location_id: locationId.value,
         }),
       });
 
@@ -151,10 +110,6 @@ export default component$(() => {
       error.value = "Title and price are required";
       return;
     }
-    if (!locationId.value) {
-      error.value = "No stock location found. Please set up a stock location in Medusa admin.";
-      return;
-    }
     loading.value = true;
     error.value = "";
 
@@ -176,8 +131,6 @@ export default component$(() => {
             price: Math.round(parseFloat(newPrice.value) * 100),
             currency_code: "cad",
             quantity: newQty.value,
-            location_id: locationId.value,
-            sales_channel_id: salesChannelId.value || undefined,
           }),
         }
       );
@@ -194,7 +147,7 @@ export default component$(() => {
         new_stock: data.quantity_stocked,
       });
 
-      message.value = `NEW PRODUCT created: ${data.product.title} — ${data.quantity_stocked} in stock`;
+      message.value = `NEW: ${data.product.title} created — ${data.quantity_stocked} in stock`;
       showNewForm.value = false;
       newTitle.value = "";
       newPrice.value = "";
@@ -208,11 +161,14 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Scanner + action */}
-      <div class="flex-1 min-w-0 p-4 md:p-6 pb-24 overflow-y-auto overflow-x-hidden">
-        <div class="flex items-center justify-between mb-6">
-          <h1 class="text-2xl font-bold">Receive Inventory</h1>
+      <div class="flex-1 min-w-0 p-3 pb-20 overflow-y-auto overflow-x-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <img src="/logo.png" alt="Safety House" class="h-7" />
+            <span class="text-sm font-bold text-amber-400 uppercase tracking-wider">Receive</span>
+          </div>
           <button
-            class="lg:hidden bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-sm"
+            class="lg:hidden bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
             onClick$={() => (showLog.value = !showLog.value)}
           >
             Log ({received.length})
@@ -220,13 +176,13 @@ export default component$(() => {
         </div>
 
         {!token.value && (
-          <p class="text-yellow-400 text-sm mb-4">
-            Not logged in — <a href="/pos/session" class="underline">open a session</a> first
-          </p>
+          <div class="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs px-3 py-2 rounded-lg mb-3">
+            Not logged in — <a href="/pos/session" class="underline font-medium">open session</a>
+          </div>
         )}
 
-        {/* Barcode scanner — shared component with live camera preview */}
-        <div class="mb-6">
+        {/* Barcode scanner */}
+        <div class="mb-3">
           <BarcodeInput
             token={token.value}
             backendUrl={posConfig.backendUrl}
@@ -236,63 +192,75 @@ export default component$(() => {
           />
         </div>
 
+        {/* Messages */}
+        {error.value && (
+          <div class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg mb-3">
+            {error.value}
+          </div>
+        )}
+        {message.value && (
+          <div class="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs px-3 py-2 rounded-lg mb-3">
+            {message.value}
+          </div>
+        )}
+
         {/* Found product — receive stock */}
         {scannedVariant.value && (
-          <div class="bg-gray-800 rounded-xl p-5 mb-4 border border-gray-700">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h2 class="text-lg font-bold">
+          <div class="bg-gray-900 rounded-xl p-4 mb-3 border border-gray-800">
+            <div class="flex items-start justify-between mb-3">
+              <div class="min-w-0 flex-1">
+                <h2 class="text-base font-bold truncate">
                   {scannedVariant.value.product?.title}
                 </h2>
-                <p class="text-sm text-gray-400">
-                  {scannedVariant.value.title} — SKU:{" "}
-                  {scannedVariant.value.sku || "—"}
+                <p class="text-xs text-gray-500">
+                  {scannedVariant.value.title} — SKU: {scannedVariant.value.sku || "—"}
                 </p>
                 {scannedVariant.value.inventory_items?.[0]?.inventory
                   ?.location_levels?.[0] && (
-                  <p class="text-sm text-gray-500 mt-1">
+                  <p class="text-xs text-gray-600 mt-0.5">
                     Current stock:{" "}
-                    {
-                      scannedVariant.value.inventory_items[0].inventory
-                        .location_levels[0].stocked_quantity
-                    }
+                    <span class="text-gray-400 font-medium">
+                      {scannedVariant.value.inventory_items[0].inventory.location_levels[0].stocked_quantity}
+                    </span>
                   </p>
                 )}
               </div>
               {(() => {
                 const v = scannedVariant.value;
-                const price = v.calculated_price?.calculated_amount
+                const price = v.price
+                  ?? v.calculated_price?.calculated_amount
                   ?? (v.prices?.find((p: any) => p.currency_code === "cad") || v.prices?.[0])?.amount
-                  ?? v.price ?? v.original_price;
+                  ?? v.original_price;
                 return price != null ? (
-                  <p class="text-xl font-bold">
-                    ${(price / 100).toFixed(2)} CAD
+                  <p class="text-lg font-bold text-emerald-400 ml-3">
+                    ${(price / 100).toFixed(2)}
                   </p>
                 ) : null;
               })()}
             </div>
 
-            <div class="flex flex-wrap items-end gap-3">
+            <div class="flex flex-wrap items-end gap-2">
               <div>
-                <label class="block text-xs text-gray-400 mb-1">
-                  Quantity to receive
-                </label>
+                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Qty</label>
                 <input
                   type="number"
-                  class="w-28 bg-gray-700 text-white px-3 py-2 rounded text-lg text-center"
+                  class="w-20 bg-gray-800 text-white px-2 py-1.5 rounded-lg text-base text-center border border-gray-700 focus:border-amber-500 focus:outline-none"
                   min={1}
                   value={receiveQty.value}
                   onInput$={(e) =>
-                    (receiveQty.value =
-                      parseInt((e.target as HTMLInputElement).value) || 1)
+                    (receiveQty.value = parseInt((e.target as HTMLInputElement).value) || 1)
                   }
                 />
               </div>
-              <div class="flex flex-wrap gap-2">
+              <div class="flex gap-1">
                 {[1, 5, 10, 25, 50].map((n) => (
                   <button
                     key={n}
-                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm"
+                    class={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      receiveQty.value === n
+                        ? "bg-amber-600 text-white"
+                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    }`}
                     onClick$={() => (receiveQty.value = n)}
                   >
                     {n}
@@ -300,7 +268,7 @@ export default component$(() => {
                 ))}
               </div>
               <button
-                class="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-bold text-lg disabled:opacity-50 sm:ml-auto"
+                class="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors sm:ml-auto"
                 disabled={loading.value}
                 onClick$={receiveStock}
               >
@@ -312,83 +280,64 @@ export default component$(() => {
 
         {/* New product form */}
         {showNewForm.value && (
-          <div class="bg-gray-800 rounded-xl p-5 mb-4 border border-yellow-600">
-            <h2 class="text-lg font-bold mb-3 text-yellow-400">
-              New Product
-            </h2>
-            <p class="text-sm text-gray-400 mb-4">
-              Barcode <span class="text-white font-mono">{newBarcode.value}</span> not found. Create it:
+          <div class="bg-gray-900 rounded-xl p-4 mb-3 border border-amber-600/40">
+            <h2 class="text-sm font-bold mb-2 text-amber-400 uppercase tracking-wide">New Product</h2>
+            <p class="text-xs text-gray-500 mb-3">
+              Barcode <span class="text-white font-mono text-[11px]">{newBarcode.value}</span> not found.
             </p>
-            <div class="space-y-3">
+            <div class="space-y-2">
               <div>
-                <label class="block text-xs text-gray-400 mb-1">
-                  Product Name *
-                </label>
+                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Product Name *</label>
                 <input
                   type="text"
-                  class="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                  placeholder="e.g. Blue T-Shirt Large"
+                  class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
+                  placeholder="e.g. Steel Toe Boot Size 10"
                   value={newTitle.value}
-                  onInput$={(e) =>
-                    (newTitle.value = (e.target as HTMLInputElement).value)
-                  }
+                  onInput$={(e) => (newTitle.value = (e.target as HTMLInputElement).value)}
                 />
               </div>
-              <div class="flex gap-3">
+              <div class="flex gap-2">
                 <div class="flex-1">
-                  <label class="block text-xs text-gray-400 mb-1">
-                    Price (CAD) *
-                  </label>
+                  <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Price (CAD) *</label>
                   <input
                     type="number"
                     step="0.01"
-                    class="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                    class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
                     placeholder="29.99"
                     value={newPrice.value}
-                    onInput$={(e) =>
-                      (newPrice.value = (e.target as HTMLInputElement).value)
-                    }
+                    onInput$={(e) => (newPrice.value = (e.target as HTMLInputElement).value)}
                   />
                 </div>
                 <div class="flex-1">
-                  <label class="block text-xs text-gray-400 mb-1">
-                    Quantity
-                  </label>
+                  <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Qty</label>
                   <input
                     type="number"
-                    class="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                    class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
                     min={0}
                     value={newQty.value}
-                    onInput$={(e) =>
-                      (newQty.value =
-                        parseInt((e.target as HTMLInputElement).value) || 0)
-                    }
+                    onInput$={(e) => (newQty.value = parseInt((e.target as HTMLInputElement).value) || 0)}
                   />
                 </div>
               </div>
               <div>
-                <label class="block text-xs text-gray-400 mb-1">
-                  Barcode / UPC
-                </label>
+                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Barcode</label>
                 <input
                   type="text"
-                  class="w-full bg-gray-700 text-white px-3 py-2 rounded font-mono"
+                  class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm font-mono border border-gray-700 focus:border-amber-500 focus:outline-none"
                   value={newBarcode.value}
-                  onInput$={(e) =>
-                    (newBarcode.value = (e.target as HTMLInputElement).value)
-                  }
+                  onInput$={(e) => (newBarcode.value = (e.target as HTMLInputElement).value)}
                 />
               </div>
-              <div class="flex gap-3 pt-2">
+              <div class="flex gap-2 pt-1">
                 <button
-                  class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded-lg font-bold disabled:opacity-50"
+                  class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors"
                   disabled={loading.value}
                   onClick$={createNewProduct}
                 >
                   {loading.value ? "Creating..." : "Create & Receive"}
                 </button>
                 <button
-                  class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg"
+                  class="bg-gray-800 hover:bg-gray-700 text-gray-400 px-4 py-2.5 rounded-xl text-sm"
                   onClick$={() => {
                     showNewForm.value = false;
                     message.value = "";
@@ -400,58 +349,40 @@ export default component$(() => {
             </div>
           </div>
         )}
-
-        {/* Messages */}
-        {error.value && (
-          <p class="text-red-400 text-sm mb-3">{error.value}</p>
-        )}
-        {message.value && (
-          <p class="text-yellow-300 text-sm mb-3">{message.value}</p>
-        )}
       </div>
 
-      {/* Right: Receive log — hidden on mobile, toggleable */}
-      <div class={`${showLog.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[380px] lg:shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden`}>
-        <div class="p-4 border-b border-gray-700 flex items-center justify-between">
-          <h2 class="font-bold text-sm uppercase tracking-wide text-gray-400">
-            Received This Session ({received.length})
+      {/* Right: Receive log */}
+      <div class={`${showLog.value ? "fixed inset-0 z-40" : "hidden"} lg:relative lg:block lg:z-auto w-full lg:w-[340px] lg:shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden`}>
+        <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+          <h2 class="font-bold text-[10px] uppercase tracking-widest text-gray-500">
+            Received ({received.length})
           </h2>
           <button
-            class="lg:hidden text-gray-400 hover:text-white text-sm"
+            class="lg:hidden text-gray-500 hover:text-white text-xs"
             onClick$={() => (showLog.value = false)}
           >
             Close
           </button>
         </div>
-        <div class="flex-1 overflow-auto p-4">
+        <div class="flex-1 overflow-auto p-3">
           {received.length === 0 ? (
-            <p class="text-gray-500 text-sm text-center py-8">
+            <p class="text-gray-600 text-xs text-center py-8">
               Scan products to receive inventory
             </p>
           ) : (
-            <div class="space-y-2">
+            <div class="space-y-1.5">
               {received.map((item, i) => (
-                <div
-                  key={i}
-                  class="bg-gray-700 rounded-lg p-3"
-                >
+                <div key={i} class="bg-gray-800/50 rounded-lg p-2.5">
                   <div class="flex justify-between items-start">
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium truncate">
-                        {item.product_title}
-                      </p>
-                      <p class="text-xs text-gray-400">
-                        {item.sku}
-                        {item.barcode ? ` | ${item.barcode}` : ""}
+                      <p class="text-xs font-medium truncate">{item.product_title}</p>
+                      <p class="text-[10px] text-gray-500">
+                        {item.sku}{item.barcode ? ` | ${item.barcode}` : ""}
                       </p>
                     </div>
-                    <div class="text-right ml-3">
-                      <p class="text-green-400 font-bold text-sm">
-                        +{item.quantity_added}
-                      </p>
-                      <p class="text-xs text-gray-400">
-                        Stock: {item.new_stock}
-                      </p>
+                    <div class="text-right ml-2">
+                      <p class="text-emerald-400 font-bold text-xs">+{item.quantity_added}</p>
+                      <p class="text-[10px] text-gray-500">Stock: {item.new_stock}</p>
                     </div>
                   </div>
                 </div>
@@ -459,9 +390,9 @@ export default component$(() => {
             </div>
           )}
         </div>
-        <div class="p-4 border-t border-gray-700">
-          <p class="text-sm text-gray-400">
-            Total received:{" "}
+        <div class="p-3 border-t border-gray-800">
+          <p class="text-xs text-gray-500">
+            Total:{" "}
             <span class="text-white font-bold">
               {received.reduce((s, i) => s + i.quantity_added, 0)} units
             </span>

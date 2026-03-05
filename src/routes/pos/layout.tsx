@@ -28,56 +28,53 @@ export default component$(() => {
   };
 
   return (
-    <div class="fixed inset-0 bg-gray-900 text-white flex flex-col overflow-hidden max-w-[100vw]">
+    <div class="fixed inset-0 bg-gray-950 text-white flex flex-col overflow-hidden max-w-[100vw]">
       {/* Content area */}
       <div class="flex-1 overflow-hidden">
         <Slot />
       </div>
 
-      {/* Bottom tab bar — with center gap for floating scan button */}
-      <nav class="bg-gray-800 border-t border-gray-700 flex shrink-0 relative">
+      {/* Bottom tab bar */}
+      <nav class="bg-gray-900 border-t border-gray-800 flex shrink-0 relative">
         <a
           href="/pos"
-          class={`flex-1 flex flex-col items-center justify-center py-3 gap-1 ${
-            isActive("/pos/") ? "text-blue-400" : "text-gray-400 hover:text-gray-200"
+          class={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
+            isActive("/pos/") ? "text-blue-400" : "text-gray-500 hover:text-gray-300"
           }`}
         >
-          {/* Shopping bag icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
             <line x1="3" y1="6" x2="21" y2="6" />
             <path d="M16 10a4 4 0 0 1-8 0" />
           </svg>
-          <span class="text-xs font-medium">Sale</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wide">Sale</span>
         </a>
         {/* Spacer for floating scan button */}
-        <div class="w-28 shrink-0" />
+        <div class="w-24 shrink-0" />
         <a
           href="/pos/receive"
-          class={`flex-1 flex flex-col items-center justify-center py-3 gap-1 ${
-            isActive("/pos/receive") ? "text-yellow-400" : "text-gray-400 hover:text-gray-200"
+          class={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
+            isActive("/pos/receive") ? "text-amber-400" : "text-gray-500 hover:text-gray-300"
           }`}
         >
-          {/* Package/box icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
             <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
-          <span class="text-xs font-medium">Receive</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wide">Receive</span>
         </a>
         <a
           href="/"
-          class={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-gray-400 hover:text-gray-200`}
+          class="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-gray-500 hover:text-gray-300 transition-colors"
         >
-          {/* Store/grid icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7" />
             <rect x="14" y="3" width="7" height="7" />
             <rect x="3" y="14" width="7" height="7" />
             <rect x="14" y="14" width="7" height="7" />
           </svg>
-          <span class="text-xs font-medium">Store</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wide">Store</span>
         </a>
       </nav>
     </div>
