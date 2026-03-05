@@ -22,10 +22,11 @@ export default component$(() => {
     const savedToken = localStorage.getItem("pos_token");
     if (savedToken) token.value = savedToken;
 
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (savedToken) headers["Authorization"] = `Bearer ${savedToken}`;
+
     // Fetch store defaults for location_id and sales_channel_id
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (savedToken) headers["Authorization"] = `Bearer ${savedToken}`;
       const res = await fetch(`${posConfig.backendUrl}/admin/stores`, { headers, credentials: "include" });
       if (res.ok) {
         const data = await res.json();
@@ -34,6 +35,30 @@ export default component$(() => {
         if (store?.default_sales_channel_id) salesChannelId.value = store.default_sales_channel_id;
       }
     } catch { /* use defaults */ }
+
+    // Fallback: if no location_id yet, fetch stock locations directly
+    if (!locationId.value) {
+      try {
+        const res = await fetch(`${posConfig.backendUrl}/admin/stock-locations`, { headers, credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          const loc = data.stock_locations?.[0];
+          if (loc?.id) locationId.value = loc.id;
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Fallback: fetch sales channels if still missing
+    if (!salesChannelId.value) {
+      try {
+        const res = await fetch(`${posConfig.backendUrl}/admin/sales-channels`, { headers, credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          const ch = data.sales_channels?.[0];
+          if (ch?.id) salesChannelId.value = ch.id;
+        }
+      } catch { /* ignore */ }
+    }
   });
   const loading = useSignal(false);
   const error = useSignal("");
@@ -124,6 +149,10 @@ export default component$(() => {
   const createNewProduct = $(async () => {
     if (!newTitle.value || !newPrice.value) {
       error.value = "Title and price are required";
+      return;
+    }
+    if (!locationId.value) {
+      error.value = "No stock location found. Please set up a stock location in Medusa admin.";
       return;
     }
     loading.value = true;
