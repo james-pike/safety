@@ -40,7 +40,7 @@ export default component$<Props>(({ token, backendUrl, onSelect$ }) => {
               const data = await res.json();
               results.value = data.products || [];
             }
-          } catch {}
+          } catch { /* ignore */ }
           loading.value = false;
         }}
       />
