@@ -46,11 +46,19 @@ export default component$(() => {
 
   // New product form
   const showNewForm = useSignal(false);
+  const newMode = useSignal<"new" | "add-size">("new");
   const newTitle = useSignal("");
   const newPrice = useSignal("");
   const newBarcode = useSignal("");
   const newQty = useSignal(1);
   const newCategoryId = useSignal("");
+  const newSize = useSignal("");
+
+  // Add-to-existing product state
+  const productSearch = useSignal("");
+  const productResults = useSignal<any[]>([]);
+  const selectedProduct = useSignal<any>(null);
+  const searchingProducts = useSignal(false);
 
   // History of received items this session
   const received = useStore<ReceivedItem[]>([]);
@@ -67,13 +75,18 @@ export default component$(() => {
   const handleNotFound = $((code: string) => {
     scannedVariant.value = null;
     showNewForm.value = true;
+    newMode.value = "new";
     newBarcode.value = code;
     newTitle.value = "";
     newPrice.value = "";
     newQty.value = 1;
     newCategoryId.value = "";
+    newSize.value = "";
+    selectedProduct.value = null;
+    productSearch.value = "";
+    productResults.value = [];
     error.value = "";
-    message.value = `"${code}" not found — add as new product below`;
+    message.value = `"${code}" not found — add as new product or new size below`;
   });
 
   const handleError = $((msg: string) => {
@@ -121,6 +134,27 @@ export default component$(() => {
     loading.value = false;
   });
 
+  const searchProducts = $(async (q: string) => {
+    if (!q || q.length < 2) {
+      productResults.value = [];
+      return;
+    }
+    searchingProducts.value = true;
+    try {
+      const headers: Record<string, string> = {};
+      if (token.value) headers["Authorization"] = `Bearer ${token.value}`;
+      const res = await fetch(
+        `${posConfig.backendUrl}/admin/products?q=${encodeURIComponent(q)}&limit=10&fields=id,title,handle,thumbnail`,
+        { headers, credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        productResults.value = data.products || [];
+      }
+    } catch { /* ignore */ }
+    searchingProducts.value = false;
+  });
+
   const createNewProduct = $(async () => {
     if (!newTitle.value || !newPrice.value) {
       error.value = "Title and price are required";
@@ -148,6 +182,7 @@ export default component$(() => {
             currency_code: "cad",
             quantity: newQty.value,
             category_id: newCategoryId.value || undefined,
+            size: newSize.value || undefined,
           }),
         }
       );
@@ -157,16 +192,72 @@ export default component$(() => {
 
       received.unshift({
         product_title: data.product.title,
-        variant_title: "Default",
+        variant_title: newSize.value || "Default",
         sku: data.product.sku,
         barcode: data.product.barcode || "",
         quantity_added: data.quantity_stocked,
         new_stock: data.quantity_stocked,
       });
 
-      message.value = `NEW: ${data.product.title} created — ${data.quantity_stocked} in stock`;
+      message.value = `NEW: ${data.product.title}${newSize.value ? ` (${newSize.value})` : ""} created — ${data.quantity_stocked} in stock`;
       showNewForm.value = false;
       newTitle.value = "";
+      newPrice.value = "";
+      newBarcode.value = "";
+      newSize.value = "";
+    } catch (err: any) {
+      error.value = err.message;
+    }
+    loading.value = false;
+  });
+
+  const addVariantToProduct = $(async () => {
+    if (!selectedProduct.value || !newSize.value || !newPrice.value) {
+      error.value = "Select a product, size, and price";
+      return;
+    }
+    loading.value = true;
+    error.value = "";
+
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token.value) headers["Authorization"] = `Bearer ${token.value}`;
+
+      const res = await fetch(
+        `${posConfig.backendUrl}/admin/pos/receive/add-variant`,
+        {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({
+            product_id: selectedProduct.value.id,
+            size: newSize.value,
+            barcode: newBarcode.value || undefined,
+            price: Math.round(parseFloat(newPrice.value) * 100),
+            currency_code: "cad",
+            quantity: newQty.value,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      received.unshift({
+        product_title: data.product.title,
+        variant_title: data.variant.title,
+        sku: data.variant.sku || "",
+        barcode: data.variant.barcode || "",
+        quantity_added: data.quantity_stocked,
+        new_stock: data.quantity_stocked,
+      });
+
+      message.value = `SIZE ADDED: ${data.product.title} — ${data.variant.title} — ${data.quantity_stocked} in stock`;
+      showNewForm.value = false;
+      selectedProduct.value = null;
+      newSize.value = "";
       newPrice.value = "";
       newBarcode.value = "";
     } catch (err: any) {
@@ -289,21 +380,142 @@ export default component$(() => {
         {/* New product form */}
         {showNewForm.value && (
           <div class="bg-gray-900 rounded-xl p-4 mb-3 border border-amber-600/40">
-            <h2 class="text-sm font-bold mb-2 text-amber-400 uppercase tracking-wide">New Product</h2>
             <p class="text-xs text-gray-500 mb-3">
               Barcode <span class="text-white font-mono text-[11px]">{newBarcode.value}</span> not found.
             </p>
+
+            {/* Mode toggle */}
+            <div class="flex gap-1.5 mb-3">
+              <button
+                class={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${newMode.value === "new" ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-400"}`}
+                onClick$={() => { newMode.value = "new"; selectedProduct.value = null; }}
+              >
+                New Product
+              </button>
+              <button
+                class={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${newMode.value === "add-size" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}
+                onClick$={() => { newMode.value = "add-size"; }}
+              >
+                New Size of Existing
+              </button>
+            </div>
+
             <div class="space-y-2">
-              <div>
-                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Product Name *</label>
-                <input
-                  type="text"
-                  class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
-                  placeholder="e.g. Steel Toe Boot Size 10"
-                  value={newTitle.value}
-                  onInput$={(e) => (newTitle.value = (e.target as HTMLInputElement).value)}
-                />
-              </div>
+              {/* Add-size mode: product search */}
+              {newMode.value === "add-size" && (
+                <>
+                  {!selectedProduct.value ? (
+                    <div>
+                      <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Search Product *</label>
+                      <input
+                        type="text"
+                        class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+                        placeholder="Search by name..."
+                        value={productSearch.value}
+                        onInput$={(e) => {
+                          productSearch.value = (e.target as HTMLInputElement).value;
+                          searchProducts((e.target as HTMLInputElement).value);
+                        }}
+                      />
+                      {searchingProducts.value && (
+                        <p class="text-[10px] text-gray-500 mt-1">Searching...</p>
+                      )}
+                      {productResults.value.length > 0 && (
+                        <div class="mt-1 max-h-32 overflow-auto rounded-lg border border-gray-700">
+                          {productResults.value.map((p) => (
+                            <button
+                              key={p.id}
+                              class="w-full text-left px-3 py-2 text-xs hover:bg-gray-700 transition-colors border-b border-gray-800 last:border-0"
+                              onClick$={() => {
+                                selectedProduct.value = p;
+                                productResults.value = [];
+                                productSearch.value = "";
+                              }}
+                            >
+                              {p.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div class="flex items-center justify-between bg-blue-600/10 border border-blue-600/30 rounded-lg px-3 py-2">
+                      <span class="text-sm font-medium">{selectedProduct.value.title}</span>
+                      <button
+                        class="text-[10px] text-gray-400 hover:text-white"
+                        onClick$={() => { selectedProduct.value = null; }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* New product mode: title + category */}
+              {newMode.value === "new" && (
+                <>
+                  <div>
+                    <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Product Name *</label>
+                    <input
+                      type="text"
+                      class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
+                      placeholder="e.g. Carhartt Rugged Flex Boot"
+                      value={newTitle.value}
+                      onInput$={(e) => (newTitle.value = (e.target as HTMLInputElement).value)}
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Category</label>
+                    <select
+                      class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
+                      value={newCategoryId.value}
+                      onChange$={(e) => (newCategoryId.value = (e.target as HTMLSelectElement).value)}
+                    >
+                      <option value="">— No Category —</option>
+                      {categories.value.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Size selector — shows based on selected category */}
+              {(() => {
+                const catHandle = categories.value.find((c) => c.id === newCategoryId.value)?.handle;
+                const showSizes = newMode.value === "add-size" || catHandle;
+                if (!showSizes) return null;
+
+                const isFootwear = catHandle === "safety-footwear";
+                const sizes = isFootwear
+                  ? ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14"]
+                  : catHandle === "safety-supplies"
+                    ? ["One Size", "S", "M", "L", "XL"]
+                    : ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+
+                return (
+                  <div>
+                    <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Size</label>
+                    <div class="flex flex-wrap gap-1">
+                      {sizes.map((s) => (
+                        <button
+                          key={s}
+                          class={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            newSize.value === s
+                              ? "bg-amber-600 text-white"
+                              : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                          }`}
+                          onClick$={() => (newSize.value = newSize.value === s ? "" : s)}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div class="flex gap-2">
                 <div class="flex-1">
                   <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Price (CAD) *</label>
@@ -336,26 +548,17 @@ export default component$(() => {
                   onInput$={(e) => (newBarcode.value = (e.target as HTMLInputElement).value)}
                 />
               </div>
-              <div>
-                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Category</label>
-                <select
-                  class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
-                  value={newCategoryId.value}
-                  onChange$={(e) => (newCategoryId.value = (e.target as HTMLSelectElement).value)}
-                >
-                  <option value="">— No Category —</option>
-                  {categories.value.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
               <div class="flex gap-2 pt-1">
                 <button
-                  class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors"
+                  class={`flex-1 ${newMode.value === "add-size" ? "bg-blue-600 hover:bg-blue-500" : "bg-amber-600 hover:bg-amber-500"} text-white py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors`}
                   disabled={loading.value}
-                  onClick$={createNewProduct}
+                  onClick$={newMode.value === "add-size" ? addVariantToProduct : createNewProduct}
                 >
-                  {loading.value ? "Creating..." : "Create & Receive"}
+                  {loading.value
+                    ? "Creating..."
+                    : newMode.value === "add-size"
+                      ? `Add Size${newSize.value ? ` ${newSize.value}` : ""}`
+                      : "Create & Receive"}
                 </button>
                 <button
                   class="bg-gray-800 hover:bg-gray-700 text-gray-400 px-4 py-2.5 rounded-xl text-sm"
