@@ -130,37 +130,60 @@ export default component$<Props>(({ token, backendUrl, onScan$, onError$, onNotF
 
   return (
     <>
-      {/* Text input for manual barcode entry */}
-      <div class="flex-1 min-w-0">
-        <label class="block text-sm text-gray-400 mb-1">
-          Scan Barcode / Enter UPC
-        </label>
-        <div class="flex gap-2">
-          <input
-            type="text"
-            class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type barcode or tap Scan..."
-            value={inputValue.value}
-            autoFocus
-            onInput$={(e) =>
-              (inputValue.value = (e.target as HTMLInputElement).value)
-            }
-            onKeyDown$={async (e) => {
-              if (e.key !== "Enter" || !inputValue.value.trim()) return;
-              await lookup(inputValue.value.trim());
-            }}
-          />
-        </div>
-
-        {loading.value && (
-          <p class="text-xs text-gray-400 mt-1">Looking up...</p>
-        )}
+      {/* Bottom bar: input + scan button */}
+      <div class="flex gap-2 items-center">
+        <input
+          type="text"
+          class="flex-1 min-w-0 bg-gray-800 text-white px-3 py-2.5 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700"
+          placeholder={loading.value ? "Looking up..." : "Barcode / SKU..."}
+          value={inputValue.value}
+          autoFocus
+          onInput$={(e) =>
+            (inputValue.value = (e.target as HTMLInputElement).value)
+          }
+          onKeyDown$={async (e) => {
+            if (e.key !== "Enter" || !inputValue.value.trim()) return;
+            await lookup(inputValue.value.trim());
+          }}
+        />
+        <button
+          class={`shrink-0 ${
+            cameraActive.value
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-blue-500 hover:bg-blue-600"
+          } text-white rounded-lg flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold active:scale-95 transition-transform`}
+          onClick$={cameraActive.value ? stopCamera : startCameraScan}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            {cameraActive.value ? (
+              <>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </>
+            ) : (
+              <>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </>
+            )}
+          </svg>
+          {cameraActive.value ? "Stop" : "Scan"}
+        </button>
       </div>
 
       {/* Full-screen camera overlay */}
       {cameraActive.value && (
         <div class="fixed inset-0 z-50 bg-black flex flex-col">
-          {/* Header bar */}
           <div class="bg-gray-900 px-4 py-3 flex items-center justify-between shrink-0">
             <h2 class="text-white font-bold text-lg">Scan Barcode</h2>
             <button
@@ -170,13 +193,9 @@ export default component$<Props>(({ token, backendUrl, onScan$, onError$, onNotF
               Cancel
             </button>
           </div>
-
-          {/* Scanner viewport */}
           <div class="flex-1 flex items-center justify-center overflow-hidden">
             <div id="barcode-scanner-region" class="w-full h-full" />
           </div>
-
-          {/* Bottom hint */}
           <div class="bg-gray-900 px-4 py-3 text-center shrink-0">
             <p class="text-blue-300 text-sm animate-pulse">
               Point camera at barcode or QR code...
@@ -184,42 +203,6 @@ export default component$<Props>(({ token, backendUrl, onScan$, onError$, onNotF
           </div>
         </div>
       )}
-
-      {/* Floating scan button — overlaps bottom nav bar */}
-      <button
-        class={`fixed bottom-[28px] left-1/2 -translate-x-1/2 z-30 ${
-          cameraActive.value
-            ? "bg-red-600 hover:bg-red-700 shadow-red-500/40"
-            : "bg-blue-500 hover:bg-blue-600 shadow-blue-500/40"
-        } text-white rounded-full shadow-lg flex items-center gap-2 px-7 py-4 text-lg font-bold active:scale-95 transition-transform`}
-        onClick$={cameraActive.value ? stopCamera : startCameraScan}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="26"
-          height="26"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          {cameraActive.value ? (
-            <>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </>
-          ) : (
-            <>
-              {/* Camera/scan icon */}
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-              <circle cx="12" cy="13" r="4" />
-            </>
-          )}
-        </svg>
-        {cameraActive.value ? "Stop" : "Scan"}
-      </button>
     </>
   );
 });

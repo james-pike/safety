@@ -158,24 +158,41 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Product search / scanner */}
-      <div class="flex-1 min-w-0 flex flex-col p-3 pb-20 overflow-y-auto overflow-x-hidden">
-        {/* Header */}
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <img src="/logo.png" alt="Safety House" class="h-7" />
-            <span class="text-sm font-bold text-gray-400 uppercase tracking-wider hidden sm:inline">POS</span>
+      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+        {/* Scrollable content area */}
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-3">
+          {/* Header */}
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <img src="/logo.png" alt="Safety House" class="h-7" />
+              <span class="text-sm font-bold text-gray-400 uppercase tracking-wider hidden sm:inline">POS</span>
+            </div>
+            <button
+              class="lg:hidden bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+              onClick$={() => (showCart.value = !showCart.value)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              {items.length}
+            </button>
           </div>
-          <button
-            class="lg:hidden bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-            onClick$={() => (showCart.value = !showCart.value)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-            {items.length}
-          </button>
+
+          {/* Error display */}
+          {error.value && (
+            <div class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg mb-3">
+              {error.value}
+            </div>
+          )}
+
+          {/* Product search */}
+          <ProductLookup
+            token={token.value}
+            backendUrl={posConfig.backendUrl}
+            onSelect$={(variant: any) => addItem(variant)}
+          />
         </div>
 
-        {/* Scanner input */}
-        <div class="mb-3">
+        {/* Bottom: Scanner input pinned above tabs */}
+        <div class="shrink-0 border-t border-gray-800 bg-gray-900 p-2">
           <BarcodeInput
             token={token.value}
             backendUrl={posConfig.backendUrl}
@@ -183,20 +200,6 @@ export default component$(() => {
             onError$={(msg: string) => (error.value = msg)}
           />
         </div>
-
-        {/* Error display */}
-        {error.value && (
-          <div class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg mb-3">
-            {error.value}
-          </div>
-        )}
-
-        {/* Product search */}
-        <ProductLookup
-          token={token.value}
-          backendUrl={posConfig.backendUrl}
-          onSelect$={(variant: any) => addItem(variant)}
-        />
       </div>
 
       {/* Right: Cart + Payment */}

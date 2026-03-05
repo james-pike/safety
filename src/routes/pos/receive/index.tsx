@@ -19,7 +19,20 @@ export default component$(() => {
   // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(async () => {
     const savedToken = localStorage.getItem("pos_token");
-    if (savedToken) token.value = savedToken;
+    if (savedToken) {
+      token.value = savedToken;
+      // Load categories
+      try {
+        const res = await fetch(`${posConfig.backendUrl}/admin/pos/categories`, {
+          headers: { Authorization: `Bearer ${savedToken}` },
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          categories.value = data.categories || [];
+        }
+      } catch { /* non-fatal */ }
+    }
   });
 
   const loading = useSignal(false);
@@ -36,6 +49,8 @@ export default component$(() => {
   const newPrice = useSignal("");
   const newBarcode = useSignal("");
   const newQty = useSignal(1);
+  const newCategoryId = useSignal("");
+  const categories = useSignal<{ id: string; name: string; handle: string }[]>([]);
 
   // History of received items this session
   const received = useStore<ReceivedItem[]>([]);
@@ -56,6 +71,7 @@ export default component$(() => {
     newTitle.value = "";
     newPrice.value = "";
     newQty.value = 1;
+    newCategoryId.value = "";
     error.value = "";
     message.value = `"${code}" not found — add as new product below`;
   });
@@ -131,6 +147,7 @@ export default component$(() => {
             price: Math.round(parseFloat(newPrice.value) * 100),
             currency_code: "cad",
             quantity: newQty.value,
+            category_id: newCategoryId.value || undefined,
           }),
         }
       );
@@ -161,7 +178,9 @@ export default component$(() => {
   return (
     <div class="flex h-full relative overflow-hidden max-w-[100vw]">
       {/* Left: Scanner + action */}
-      <div class="flex-1 min-w-0 p-3 pb-20 overflow-y-auto overflow-x-hidden">
+      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+        {/* Scrollable content */}
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-3">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <img src="/logo.png" alt="Safety House" class="h-7" />
@@ -180,17 +199,6 @@ export default component$(() => {
             Not logged in — <a href="/pos/session" class="underline font-medium">open session</a>
           </div>
         )}
-
-        {/* Barcode scanner */}
-        <div class="mb-3">
-          <BarcodeInput
-            token={token.value}
-            backendUrl={posConfig.backendUrl}
-            onScan$={handleScan}
-            onNotFound$={handleNotFound}
-            onError$={handleError}
-          />
-        </div>
 
         {/* Messages */}
         {error.value && (
@@ -328,6 +336,19 @@ export default component$(() => {
                   onInput$={(e) => (newBarcode.value = (e.target as HTMLInputElement).value)}
                 />
               </div>
+              <div>
+                <label class="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Category</label>
+                <select
+                  class="w-full bg-gray-800 text-white px-3 py-2 rounded-lg text-sm border border-gray-700 focus:border-amber-500 focus:outline-none"
+                  value={newCategoryId.value}
+                  onChange$={(e) => (newCategoryId.value = (e.target as HTMLSelectElement).value)}
+                >
+                  <option value="">— No Category —</option>
+                  {categories.value.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
               <div class="flex gap-2 pt-1">
                 <button
                   class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors"
@@ -349,6 +370,18 @@ export default component$(() => {
             </div>
           </div>
         )}
+        </div>
+
+        {/* Bottom: Scanner input pinned above tabs */}
+        <div class="shrink-0 border-t border-gray-800 bg-gray-900 p-2">
+          <BarcodeInput
+            token={token.value}
+            backendUrl={posConfig.backendUrl}
+            onScan$={handleScan}
+            onNotFound$={handleNotFound}
+            onError$={handleError}
+          />
+        </div>
       </div>
 
       {/* Right: Receive log */}

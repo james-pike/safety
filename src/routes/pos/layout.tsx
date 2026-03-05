@@ -49,8 +49,6 @@ export default component$(() => {
           </svg>
           <span class="text-[10px] font-semibold uppercase tracking-wide">Sale</span>
         </a>
-        {/* Spacer for floating scan button */}
-        <div class="w-24 shrink-0" />
         <a
           href="/pos/receive"
           class={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
