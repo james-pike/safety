@@ -274,7 +274,7 @@ export default component$(() => {
         <div class="flex-1 overflow-y-auto overflow-x-hidden p-3">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <img src="/logo.png" alt="Safety House" class="h-7" />
+            <img src="/logo.png" alt="Safety House" class="h-7 invert" />
             <span class="text-sm font-bold text-amber-400 uppercase tracking-wider">Receive</span>
           </div>
           <button
